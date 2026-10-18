@@ -1,0 +1,4 @@
+spring:
+  flyway:
+    # dev profilinde örnek veriler de yüklenir (db/seed). Prod'da sadece db/migration çalışır.
+    locations: classpath:db/migration,classpath:db/seed
