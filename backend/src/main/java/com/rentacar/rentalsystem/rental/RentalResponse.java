@@ -4,10 +4,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * Rental data returned by the API. Only a short summary of the car and customer is included
- * (never the customer's password or balance).
- */
 public record RentalResponse(
         UUID id,
         UUID carId,

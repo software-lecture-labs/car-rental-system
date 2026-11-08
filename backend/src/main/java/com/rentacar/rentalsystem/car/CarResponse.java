@@ -3,7 +3,6 @@ package com.rentacar.rentalsystem.car;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-/** Car data returned by the API. */
 public record CarResponse(
         UUID id,
         String brand,

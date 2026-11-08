@@ -53,7 +53,6 @@ public class CustomerService {
     }
 
     public Customer getCustomerByEmail(String email) {
-        // emails are stored in lower case (see CustomerRegisterRequest)
         return customerRepository.findByEmail(email.trim().toLowerCase(Locale.ROOT))
                 .orElseThrow(() -> new ResourceNotFoundException("Customer not found with email: " + email));
     }

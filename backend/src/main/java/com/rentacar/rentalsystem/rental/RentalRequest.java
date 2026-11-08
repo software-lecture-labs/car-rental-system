@@ -8,10 +8,7 @@ import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * Payload for renting a car.
- * selectedPackage is optional: empty or "DAILY" means no discount, otherwise a pricing policy code (e.g. WEEKLY).
- */
+
 public record RentalRequest(
 
         @NotNull

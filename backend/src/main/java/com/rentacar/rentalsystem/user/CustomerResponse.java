@@ -3,7 +3,6 @@ package com.rentacar.rentalsystem.user;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-/** Customer data returned by the API. The password is never exposed. */
 public record CustomerResponse(
         UUID id,
         String firstName,

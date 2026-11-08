@@ -8,10 +8,6 @@ import jakarta.validation.constraints.Size;
 
 import java.util.Locale;
 
-/**
- * Registration payload. Balance, role and id are intentionally NOT accepted from the client:
- * every new customer starts with a zero balance and the CUSTOMER role.
- */
 public record CustomerRegisterRequest(
 
         @NotBlank @Size(max = 50)
@@ -34,7 +30,6 @@ public record CustomerRegisterRequest(
         Customer customer = new Customer();
         customer.setFirstName(firstName.trim());
         customer.setLastName(lastName.trim());
-        // users.email has a case-insensitive unique index, so emails are stored in lower case
         customer.setEmail(email.trim().toLowerCase(Locale.ROOT));
         customer.setPassword(password);
         customer.setLicenseYear(licenseYear);

@@ -20,19 +20,15 @@ import java.sql.SQLException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * Turns exceptions into RFC 9457 "problem detail" JSON responses with the right HTTP status.
- * Standard Spring MVC errors (malformed JSON, missing/invalid parameters...) are handled by the parent class.
- */
+
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    // PostgreSQL SQLSTATE codes
     private static final String UNIQUE_VIOLATION = "23505";
     private static final String FOREIGN_KEY_VIOLATION = "23503";
-    private static final String RESTRICT_VIOLATION = "23001"; // FKs declared ON DELETE RESTRICT (V5)
+    private static final String RESTRICT_VIOLATION = "23001";
     private static final String CHECK_VIOLATION = "23514";
     private static final String EXCLUSION_VIOLATION = "23P01";
 
@@ -51,7 +47,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.BAD_REQUEST, "Invalid request", ex.getMessage());
     }
 
-    /** Last line of defence: constraints enforced by the database (see Flyway migrations). */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ProblemDetail handleDataIntegrity(DataIntegrityViolationException ex) {
         String sqlState = findSqlState(ex);
@@ -78,7 +73,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error", "An unexpected error occurred.");
     }
 
-    /** @Valid @RequestBody failures: report every invalid field. */
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex, HttpHeaders headers,
                                                                   HttpStatusCode status, WebRequest request) {
@@ -91,7 +85,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.badRequest().body(body);
     }
 
-    /** Constraint annotations on @RequestParam / @PathVariable (e.g. @Positive amount). */
     @Override
     protected ResponseEntity<Object> handleHandlerMethodValidationException(HandlerMethodValidationException ex, HttpHeaders headers,
                                                                             HttpStatusCode status, WebRequest request) {

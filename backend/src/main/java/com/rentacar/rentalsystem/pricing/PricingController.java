@@ -23,7 +23,6 @@ public class PricingController {
                 .toList());
     }
 
-    // PUT /api/pricing/policies/WEEKLY?rate=0.08  (codes: STANDARD, WEEKLY, MONTHLY)
     @PutMapping("/policies/{policyName}")
     public ResponseEntity<String> updateDiscountRate(
             @PathVariable String policyName,

@@ -100,7 +100,6 @@ class CarControllerTest {
     @Test
     void deletingCarWithRentalHistoryReturns409() throws Exception {
         UUID id = UUID.randomUUID();
-        // PostgreSQL reports ON DELETE RESTRICT foreign keys with SQLSTATE 23001
         doThrow(new DataIntegrityViolationException("fk", new SQLException("restrict violation", "23001")))
                 .when(carService).deleteCar(id);
 

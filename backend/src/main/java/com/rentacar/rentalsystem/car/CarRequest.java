@@ -12,10 +12,6 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.util.Locale;
 
-/**
- * Payload for adding a car. Id and status are NOT accepted from the client: a new car is always AVAILABLE.
- * Limits mirror the cars table constraints (V3 migration).
- */
 public record CarRequest(
 
         @NotBlank @Size(max = 50)
@@ -36,7 +32,6 @@ public record CarRequest(
         @NotBlank @Size(max = 30)
         String color,
 
-        // Spaces and lower case are accepted ("34 abc 123") and normalized to "34ABC123"
         @NotBlank
         @Pattern(regexp = "^\\s*[0-9]{2}\\s*[A-Za-z]{1,3}\\s*[0-9]{2,4}\\s*$",
                 message = "must be a valid Turkish plate, e.g. 34ABC123")
