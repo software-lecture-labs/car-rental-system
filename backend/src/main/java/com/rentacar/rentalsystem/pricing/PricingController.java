@@ -1,5 +1,7 @@
 package com.rentacar.rentalsystem.pricing;
 
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,15 +17,17 @@ public class PricingController {
     private final PricingService pricingService;
 
     @GetMapping("/policies")
-    public ResponseEntity<List<PricingPolicy>> getAllPolicies() {
-        return ResponseEntity.ok(pricingService.getAllPricingPolicies());
+    public ResponseEntity<List<PricingPolicyResponse>> getAllPolicies() {
+        return ResponseEntity.ok(pricingService.getAllPricingPolicies().stream()
+                .map(PricingPolicyResponse::from)
+                .toList());
     }
 
-    // PUT: http://localhost:8081/api/pricing/policies/WEEKLY?rate=0.08  (codes: STANDARD, WEEKLY, MONTHLY)
+    // PUT /api/pricing/policies/WEEKLY?rate=0.08  (codes: STANDARD, WEEKLY, MONTHLY)
     @PutMapping("/policies/{policyName}")
     public ResponseEntity<String> updateDiscountRate(
             @PathVariable String policyName,
-            @RequestParam BigDecimal rate) {
+            @RequestParam @DecimalMin("0.0") @DecimalMax(value = "1.0", inclusive = false) BigDecimal rate) {
 
         pricingService.updateDiscountRate(policyName, rate);
         return ResponseEntity.ok("Discount rate updated for package " + policyName + ".");
