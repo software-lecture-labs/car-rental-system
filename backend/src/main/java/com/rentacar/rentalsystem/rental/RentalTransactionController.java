@@ -28,6 +28,12 @@ public class RentalTransactionController {
         return new ResponseEntity<>(RentalResponse.from(transaction), HttpStatus.CREATED);
     }
 
+    @PutMapping("/{id}/pickup")
+    public ResponseEntity<String> pickupCar(@PathVariable UUID id) {
+        transactionService.pickupCar(id);
+        return ResponseEntity.ok("Car has been picked up.");
+    }
+
     @PutMapping("/{id}/return")
     public ResponseEntity<String> returnCar(@PathVariable UUID id) {
         transactionService.returnCar(id);

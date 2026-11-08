@@ -19,10 +19,12 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -88,6 +90,23 @@ class RentalTransactionControllerTest {
                         .content(validRequest(LocalDateTime.now().plusDays(1), 7)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.title").value("Car already booked"));
+    }
+
+    @Test
+    void pickupReturns200() throws Exception {
+        mockMvc.perform(put("/api/rentals/{id}/pickup", UUID.randomUUID()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void pickupBeforeStartDateReturns409() throws Exception {
+        UUID id = UUID.randomUUID();
+        doThrow(new BusinessRuleException("The car can be picked up on or after the rental start date."))
+                .when(transactionService).pickupCar(id);
+
+        mockMvc.perform(put("/api/rentals/{id}/pickup", id))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("The car can be picked up on or after the rental start date."));
     }
 
     @Test
