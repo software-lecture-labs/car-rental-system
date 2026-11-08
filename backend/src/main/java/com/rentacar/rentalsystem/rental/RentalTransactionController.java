@@ -1,11 +1,11 @@
 package com.rentacar.rentalsystem.rental;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -16,16 +16,8 @@ public class RentalTransactionController {
 
     private final RentalTransactionService transactionService;
 
-    public record RentalRequest(
-            UUID customerId,
-            UUID carId,
-            String selectedPackage,
-            LocalDateTime startDate,
-            long rentalDays
-    ) {}
-
     @PostMapping
-    public ResponseEntity<RentalTransaction> rentCar(@RequestBody RentalRequest request) {
+    public ResponseEntity<RentalResponse> rentCar(@Valid @RequestBody RentalRequest request) {
         RentalTransaction transaction = transactionService.rentCar(
                 request.customerId(),
                 request.carId(),
@@ -33,7 +25,7 @@ public class RentalTransactionController {
                 request.startDate(),
                 request.rentalDays()
         );
-        return new ResponseEntity<>(transaction, HttpStatus.CREATED);
+        return new ResponseEntity<>(RentalResponse.from(transaction), HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}/return")
@@ -43,27 +35,31 @@ public class RentalTransactionController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<RentalTransaction> getTransactionById(@PathVariable UUID id) {
-        return ResponseEntity.ok(transactionService.getTransactionById(id));
+    public ResponseEntity<RentalResponse> getTransactionById(@PathVariable UUID id) {
+        return ResponseEntity.ok(RentalResponse.from(transactionService.getTransactionById(id)));
     }
 
     @GetMapping
-    public ResponseEntity<List<RentalTransaction>> getAllTransactions() {
-        return ResponseEntity.ok(transactionService.getAllTransactions());
+    public ResponseEntity<List<RentalResponse>> getAllTransactions() {
+        return ResponseEntity.ok(toResponses(transactionService.getAllTransactions()));
     }
 
     @GetMapping("/customer/{customerId}")
-    public ResponseEntity<List<RentalTransaction>> getTransactionsByCustomer(@PathVariable UUID customerId) {
-        return ResponseEntity.ok(transactionService.getTransactionsByCustomer(customerId));
+    public ResponseEntity<List<RentalResponse>> getTransactionsByCustomer(@PathVariable UUID customerId) {
+        return ResponseEntity.ok(toResponses(transactionService.getTransactionsByCustomer(customerId)));
     }
 
     @GetMapping("/car/{carId}")
-    public ResponseEntity<List<RentalTransaction>> getTransactionsByCar(@PathVariable UUID carId) {
-        return ResponseEntity.ok(transactionService.getTransactionsByCar(carId));
+    public ResponseEntity<List<RentalResponse>> getTransactionsByCar(@PathVariable UUID carId) {
+        return ResponseEntity.ok(toResponses(transactionService.getTransactionsByCar(carId)));
     }
 
     @GetMapping("/status/{status}")
-    public ResponseEntity<List<RentalTransaction>> getTransactionsByStatus(@PathVariable TransactionStatus status) {
-        return ResponseEntity.ok(transactionService.getTransactionsByStatus(status));
+    public ResponseEntity<List<RentalResponse>> getTransactionsByStatus(@PathVariable TransactionStatus status) {
+        return ResponseEntity.ok(toResponses(transactionService.getTransactionsByStatus(status)));
+    }
+
+    private static List<RentalResponse> toResponses(List<RentalTransaction> transactions) {
+        return transactions.stream().map(RentalResponse::from).toList();
     }
 }
