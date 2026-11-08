@@ -1,5 +1,7 @@
 package com.rentacar.rentalsystem.car;
 
+import com.rentacar.rentalsystem.exception.BusinessRuleException;
+import com.rentacar.rentalsystem.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -14,7 +16,7 @@ public class CarService {
 
     public Car addCar(Car car) {
         if (carRepository.findByPlate(car.getPlate()).isPresent()) {
-            throw new IllegalArgumentException("A car with this plate is already registered in the system!");
+            throw new BusinessRuleException("A car with plate " + car.getPlate() + " is already registered.");
         }
         return carRepository.save(car);
     }
@@ -43,14 +45,14 @@ public class CarService {
 
     public Car getCarById(UUID id) {
         return carRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Car with the specified ID could not be found."));
+                .orElseThrow(() -> new ResourceNotFoundException("Car not found: " + id));
     }
 
     public void setCarMaintenance(UUID id) {
         Car car = getCarById(id);
 
         if (car.getStatus() != CarStatus.AVAILABLE) {
-            throw new IllegalStateException("Car is not available right now. It cannot be put into maintenance!");
+            throw new BusinessRuleException("Only an available car can be put into maintenance.");
         }
 
         car.markAsMaintenance();
@@ -61,7 +63,7 @@ public class CarService {
         Car car = getCarById(id);
 
         if (car.getStatus() != CarStatus.MAINTENANCE) {
-            throw new IllegalStateException("Car is not in maintenance status!");
+            throw new BusinessRuleException("Car is not in maintenance.");
         }
 
         car.markAsAvailable();
@@ -72,7 +74,7 @@ public class CarService {
         Car car = getCarById(id);
 
         if (car.getStatus() == CarStatus.RENTED) {
-            throw new IllegalStateException("Cannot delete a rented car. Wait for the rental process to complete.");
+            throw new BusinessRuleException("A rented car cannot be deleted. Wait until it is returned.");
         }
 
         carRepository.delete(car);

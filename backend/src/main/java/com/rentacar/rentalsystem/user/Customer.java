@@ -1,5 +1,6 @@
 package com.rentacar.rentalsystem.user;
 
+import com.rentacar.rentalsystem.exception.BusinessRuleException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.PrimaryKeyJoinColumn;
@@ -26,7 +27,7 @@ public class Customer extends User {
 
     public void deductBalance(BigDecimal amount) {
         if (this.balance.compareTo(amount) < 0) {
-            throw new IllegalStateException("Insufficient balance!");
+            throw new BusinessRuleException("Insufficient balance.");
         }
         this.balance = this.balance.subtract(amount);
     }

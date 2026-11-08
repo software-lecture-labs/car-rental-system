@@ -1,6 +1,8 @@
 package com.rentacar.rentalsystem.pricing;
 
 import com.rentacar.rentalsystem.car.Car;
+import com.rentacar.rentalsystem.exception.InvalidRequestException;
+import com.rentacar.rentalsystem.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,10 +20,10 @@ public class PricingService {
 
     public void updateDiscountRate(String policyName, BigDecimal newRate) {
         PricingPolicy policy = policyRepository.findByPolicyNameIgnoreCase(policyName)
-                .orElseThrow(() -> new IllegalArgumentException("Pricing policy not found: " + policyName));
+                .orElseThrow(() -> new ResourceNotFoundException("Pricing policy not found: " + policyName));
 
         if (newRate == null || newRate.compareTo(BigDecimal.ZERO) < 0 || newRate.compareTo(BigDecimal.ONE) >= 0) {
-            throw new IllegalArgumentException("Discount rate must be greater than or equal to 0 and less than 1.");
+            throw new InvalidRequestException("Discount rate must be greater than or equal to 0 and less than 1.");
         }
 
         policy.setDiscountRate(newRate);
@@ -39,12 +41,13 @@ public class PricingService {
         }
 
         PricingPolicy policy = policyRepository.findByPolicyNameIgnoreCase(selectedPackage)
-                .orElseThrow(() -> new IllegalArgumentException("Selected package is not available!"));
+                .orElseThrow(() -> new InvalidRequestException("Unknown pricing package: " + selectedPackage));
 
         if (rentalDays >= policy.getMinDays()) {
             return new DiscountPricingStrategy(policy).calculatePrice(car, rentalDays);
         } else {
-            throw new IllegalArgumentException("To use the " + selectedPackage + " package, you must rent for at least " + policy.getMinDays() + " days.");
+            throw new InvalidRequestException("The " + policy.getPolicyName() + " package requires at least "
+                    + policy.getMinDays() + " rental days.");
         }
     }
 }

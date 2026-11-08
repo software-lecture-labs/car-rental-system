@@ -1,10 +1,14 @@
 package com.rentacar.rentalsystem.user;
 
+import com.rentacar.rentalsystem.exception.BusinessRuleException;
+import com.rentacar.rentalsystem.exception.InvalidRequestException;
+import com.rentacar.rentalsystem.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -16,7 +20,7 @@ public class CustomerService {
 
     public Customer registerCustomer(Customer customer) {
         if (userRepository.findByEmail(customer.getEmail()).isPresent()) {
-            throw new IllegalArgumentException("A user with this email already exists in the system!");
+            throw new BusinessRuleException("A user with this email already exists.");
         }
         customer.setRole(Role.CUSTOMER);
 
@@ -29,12 +33,12 @@ public class CustomerService {
 
     public Customer getCustomerById(UUID id) {
         return customerRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Customer not found with the given ID."));
+                .orElseThrow(() -> new ResourceNotFoundException("Customer not found: " + id));
     }
 
     public void loadBalance(UUID customerId, BigDecimal amount) {
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Loaded amount must be bigger than zero!");
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new InvalidRequestException("Amount must be greater than zero.");
         }
 
         Customer customer = getCustomerById(customerId);
@@ -49,8 +53,9 @@ public class CustomerService {
     }
 
     public Customer getCustomerByEmail(String email) {
-        return customerRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("Customer not found with this email."));
+        // emails are stored in lower case (see CustomerRegisterRequest)
+        return customerRepository.findByEmail(email.trim().toLowerCase(Locale.ROOT))
+                .orElseThrow(() -> new ResourceNotFoundException("Customer not found with email: " + email));
     }
 
     public List<Customer> getCustomersByFirstName(String firstName) {

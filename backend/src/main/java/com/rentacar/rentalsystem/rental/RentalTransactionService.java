@@ -3,6 +3,8 @@ package com.rentacar.rentalsystem.rental;
 import com.rentacar.rentalsystem.car.Car;
 import com.rentacar.rentalsystem.car.CarService;
 import com.rentacar.rentalsystem.car.CarStatus;
+import com.rentacar.rentalsystem.exception.BusinessRuleException;
+import com.rentacar.rentalsystem.exception.ResourceNotFoundException;
 import com.rentacar.rentalsystem.pricing.PricingPolicy;
 import com.rentacar.rentalsystem.pricing.PricingPolicyRepository;
 import com.rentacar.rentalsystem.pricing.PricingService;
@@ -34,7 +36,7 @@ public class RentalTransactionService {
         Car car = carService.getCarById(carId);
 
         if (car.getStatus() != CarStatus.AVAILABLE) {
-            throw new IllegalStateException("The selected car is not available for rent right now!");
+            throw new BusinessRuleException("The selected car is not available for rent.");
         }
 
         BigDecimal totalAmount = pricingService.calculatePrice(car, selectedPackage, rentalDays);
@@ -73,7 +75,7 @@ public class RentalTransactionService {
         RentalTransaction transaction = getTransactionById(transactionId);
 
         if (transaction.getStatus() != TransactionStatus.PENDING) {
-            throw new IllegalStateException("This transaction is already completed or cancelled.");
+            throw new BusinessRuleException("This rental is already completed or cancelled.");
         }
 
         Car car = transaction.getCar();
@@ -85,7 +87,7 @@ public class RentalTransactionService {
 
     public RentalTransaction getTransactionById(UUID id) {
         return transactionRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Rental transaction not found!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Rental not found: " + id));
     }
 
     public List<RentalTransaction> getAllTransactions() {
