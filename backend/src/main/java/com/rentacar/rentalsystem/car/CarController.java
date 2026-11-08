@@ -1,5 +1,6 @@
 package com.rentacar.rentalsystem.car;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,24 +17,24 @@ public class CarController {
     private final CarService carService;
 
     @PostMapping
-    public ResponseEntity<Car> addCar(@RequestBody Car car) {
-        Car savedCar = carService.addCar(car);
-        return new ResponseEntity<>(savedCar, HttpStatus.CREATED);
+    public ResponseEntity<CarResponse> addCar(@Valid @RequestBody CarRequest request) {
+        Car savedCar = carService.addCar(request.toEntity());
+        return new ResponseEntity<>(CarResponse.from(savedCar), HttpStatus.CREATED);
     }
 
     @GetMapping
-    public ResponseEntity<List<Car>> getAllCars() {
-        return ResponseEntity.ok(carService.getAllCars());
+    public ResponseEntity<List<CarResponse>> getAllCars() {
+        return ResponseEntity.ok(toResponses(carService.getAllCars()));
     }
 
     @GetMapping("/available")
-    public ResponseEntity<List<Car>> getAvailableCars() {
-        return ResponseEntity.ok(carService.getAvailableCars());
+    public ResponseEntity<List<CarResponse>> getAvailableCars() {
+        return ResponseEntity.ok(toResponses(carService.getAvailableCars()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Car> getCarById(@PathVariable UUID id) {
-        return ResponseEntity.ok(carService.getCarById(id));
+    public ResponseEntity<CarResponse> getCarById(@PathVariable UUID id) {
+        return ResponseEntity.ok(CarResponse.from(carService.getCarById(id)));
     }
 
     @PutMapping("/{id}/maintenance")
@@ -52,5 +53,9 @@ public class CarController {
     public ResponseEntity<String> deleteCar(@PathVariable UUID id) {
         carService.deleteCar(id);
         return ResponseEntity.ok("Car has been deleted.");
+    }
+
+    private static List<CarResponse> toResponses(List<Car> cars) {
+        return cars.stream().map(CarResponse::from).toList();
     }
 }
