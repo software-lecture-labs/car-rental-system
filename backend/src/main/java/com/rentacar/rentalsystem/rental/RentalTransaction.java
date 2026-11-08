@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -51,6 +53,16 @@ public class RentalTransaction {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private TransactionStatus status = TransactionStatus.PENDING;
+
+    public long getRentalDays() {
+        long hours = Duration.between(rentalStart, rentalEnd).toHours();
+        return Math.max(1, (hours + 23) / 24);
+    }
+
+    public BigDecimal calculateTotal() {
+        BigDecimal base = dailyPrice.multiply(BigDecimal.valueOf(getRentalDays()));
+        return base.multiply(BigDecimal.ONE.subtract(discountRate)).setScale(2, RoundingMode.HALF_UP);
+    }
 
     public void complete() {
         this.status = TransactionStatus.COMPLETED;
