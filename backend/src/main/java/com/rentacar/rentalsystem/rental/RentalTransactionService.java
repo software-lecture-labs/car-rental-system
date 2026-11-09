@@ -4,6 +4,7 @@ import com.rentacar.rentalsystem.car.Car;
 import com.rentacar.rentalsystem.car.CarService;
 import com.rentacar.rentalsystem.car.CarStatus;
 import com.rentacar.rentalsystem.exception.BusinessRuleException;
+import com.rentacar.rentalsystem.exception.InvalidRequestException;
 import com.rentacar.rentalsystem.exception.ResourceNotFoundException;
 import com.rentacar.rentalsystem.pricing.PriceQuote;
 import com.rentacar.rentalsystem.pricing.PricingService;
@@ -138,27 +139,105 @@ public class RentalTransactionService {
             refund(transaction, transaction.getDepositAmount());
         }
 
-        transaction.cancel();
+        transaction.cancel(CancellationReason.CUSTOMER_REQUEST);
         return transaction;
     }
 
     @Transactional
-    public RentalTransaction rollBackRental(UUID transactionId) {
+    public RentalTransaction rollBackRental(UUID transactionId, CancellationReason reason,
+                                            BreakdownResolution resolution, UUID replacementCarId) {
         RentalTransaction transaction = getTransactionById(transactionId);
 
         if (transaction.getStatus() != TransactionStatus.PENDING) {
             throw new BusinessRuleException("Only an active rental can be rolled back.");
         }
 
+        return switch (reason) {
+            case BREAKDOWN -> handleBreakdown(transaction, resolution, replacementCarId);
+            case COMPANY_DECISION -> rollBackByCompanyDecision(transaction);
+            case CUSTOMER_VIOLATION -> rollBackForCustomerViolation(transaction);
+            case CUSTOMER_REQUEST, NO_SHOW ->
+                    throw new InvalidRequestException("Reason " + reason + " cannot be used for a rollback.");
+        };
+    }
+
+    private RentalTransaction rollBackByCompanyDecision(RentalTransaction transaction) {
         if (transaction.isPickedUp()) {
             refund(transaction, unusedDaysAmount(transaction));
-            transaction.getCar().markAsMaintenance();
+            transaction.getCar().markAsAvailable();
         } else {
             refund(transaction, transaction.getDepositAmount());
         }
-
-        transaction.rollBack();
+        transaction.rollBack(CancellationReason.COMPANY_DECISION);
         return transaction;
+    }
+
+    private RentalTransaction rollBackForCustomerViolation(RentalTransaction transaction) {
+        if (transaction.isPickedUp()) {
+            transaction.getCar().markAsAvailable();
+        }
+        transaction.rollBack(CancellationReason.CUSTOMER_VIOLATION);
+        return transaction;
+    }
+
+    private RentalTransaction handleBreakdown(RentalTransaction transaction, BreakdownResolution resolution,
+                                              UUID replacementCarId) {
+        if (!transaction.isPickedUp()) {
+            throw new BusinessRuleException("A breakdown can only be reported for a car that has been picked up.");
+        }
+        if (resolution == null) {
+            throw new InvalidRequestException("Resolution is required for a breakdown: REFUND or REPLACEMENT.");
+        }
+
+        if (resolution == BreakdownResolution.REFUND) {
+            refund(transaction, unusedDaysAmount(transaction));
+            transaction.getCar().markAsMaintenance();
+            transaction.rollBack(CancellationReason.BREAKDOWN);
+            return transaction;
+        }
+
+        if (replacementCarId == null) {
+            throw new InvalidRequestException("Replacement car is required when the resolution is REPLACEMENT.");
+        }
+        RentalTransaction replacement = createReplacementRental(transaction, replacementCarId);
+        transaction.getCar().markAsMaintenance();
+        transaction.rollBack(CancellationReason.BREAKDOWN);
+        return replacement;
+    }
+
+    private RentalTransaction createReplacementRental(RentalTransaction original, UUID replacementCarId) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime end = original.getRentalEnd();
+        Car replacementCar = carService.getCarById(replacementCarId);
+
+        if (!now.isBefore(end)) {
+            throw new BusinessRuleException("There are no remaining rental days to replace.");
+        }
+        if (replacementCar.getId().equals(original.getCar().getId())
+                || replacementCar.getStatus() != CarStatus.AVAILABLE) {
+            throw new BusinessRuleException("The selected replacement car is not available.");
+        }
+        if (transactionRepository.existsByCar_IdAndStatusInAndRentalStartLessThanAndRentalEndGreaterThan(
+                replacementCarId, BLOCKING_STATUSES, end, now)) {
+            throw new BusinessRuleException("The replacement car is already booked for the remaining dates.");
+        }
+
+        RentalTransaction replacement = new RentalTransaction();
+        replacement.setCustomer(original.getCustomer());
+        replacement.setCar(replacementCar);
+        replacement.setTransactionDate(now);
+        replacement.setRentalStart(now);
+        replacement.setRentalEnd(end);
+        replacement.setDailyPrice(replacementCar.getDailyBasePrice());
+        replacement.setDiscountRate(BigDecimal.ZERO);
+        replacement.setTotalAmount(BigDecimal.ZERO.setScale(2));
+        replacement.setDepositAmount(BigDecimal.ZERO.setScale(2));
+        replacement.setPickedUpAt(now);
+        replacement.setReplacesRental(original);
+        replacement.setStatus(TransactionStatus.PENDING);
+
+        replacementCar.markAsRented();
+        return transactionRepository.save(replacement);
     }
 
     @Transactional
@@ -167,7 +246,7 @@ public class RentalTransactionService {
         List<RentalTransaction> noShows = transactionRepository
                 .findByStatusAndPickedUpAtIsNullAndRentalStartBefore(TransactionStatus.PENDING, latestStart);
 
-        noShows.forEach(RentalTransaction::cancel);
+        noShows.forEach(noShow -> noShow.cancel(CancellationReason.NO_SHOW));
         return noShows.size();
     }
 

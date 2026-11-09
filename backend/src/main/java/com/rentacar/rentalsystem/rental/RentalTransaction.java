@@ -62,6 +62,14 @@ public class RentalTransaction {
     @Column(nullable = false, length = 20)
     private TransactionStatus status = TransactionStatus.PENDING;
 
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    private CancellationReason cancellationReason;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "replaces_rental_id")
+    private RentalTransaction replacesRental;
+
     public boolean isPickedUp() {
         return pickedUpAt != null;
     }
@@ -84,11 +92,13 @@ public class RentalTransaction {
         this.status = TransactionStatus.COMPLETED;
     }
 
-    public void cancel() {
+    public void cancel(CancellationReason reason) {
         this.status = TransactionStatus.CANCELLED;
+        this.cancellationReason = reason;
     }
 
-    public void rollBack() {
+    public void rollBack(CancellationReason reason) {
         this.status = TransactionStatus.ROLLED_BACK;
+        this.cancellationReason = reason;
     }
 }

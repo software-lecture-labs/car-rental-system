@@ -114,12 +114,13 @@ class RentalTransactionControllerTest {
         UUID id = UUID.randomUUID();
         RentalTransaction rental = sampleRental();
         rental.setRefundedAmount(new BigDecimal("1575.00"));
-        rental.cancel();
+        rental.cancel(CancellationReason.CUSTOMER_REQUEST);
         when(transactionService.cancelReservation(id)).thenReturn(rental);
 
         mockMvc.perform(put("/api/rentals/{id}/cancel", id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELLED"))
+                .andExpect(jsonPath("$.cancellationReason").value("CUSTOMER_REQUEST"))
                 .andExpect(jsonPath("$.depositAmount").value(1575.00))
                 .andExpect(jsonPath("$.refundedAmount").value(1575.00));
     }
@@ -136,17 +137,58 @@ class RentalTransactionControllerTest {
     }
 
     @Test
-    void rollbackReturnsRolledBackRental() throws Exception {
+    void rollbackWithBreakdownRefundReturnsRolledBackRental() throws Exception {
         UUID id = UUID.randomUUID();
         RentalTransaction rental = sampleRental();
         rental.setRefundedAmount(new BigDecimal("7875.00"));
-        rental.rollBack();
-        when(transactionService.rollBackRental(id)).thenReturn(rental);
+        rental.rollBack(CancellationReason.BREAKDOWN);
+        when(transactionService.rollBackRental(id, CancellationReason.BREAKDOWN, BreakdownResolution.REFUND, null))
+                .thenReturn(rental);
 
-        mockMvc.perform(put("/api/rentals/{id}/rollback", id))
+        mockMvc.perform(put("/api/rentals/{id}/rollback", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"reason":"BREAKDOWN","resolution":"REFUND"}
+                                """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ROLLED_BACK"))
+                .andExpect(jsonPath("$.cancellationReason").value("BREAKDOWN"))
                 .andExpect(jsonPath("$.refundedAmount").value(7875.00));
+    }
+
+    @Test
+    void rollbackWithReplacementReturnsNewFreeRental() throws Exception {
+        UUID id = UUID.randomUUID();
+        UUID replacementCarId = UUID.randomUUID();
+        RentalTransaction original = sampleRental();
+        original.setId(id);
+        RentalTransaction replacement = sampleRental();
+        replacement.setTotalAmount(new BigDecimal("0.00"));
+        replacement.setDepositAmount(new BigDecimal("0.00"));
+        replacement.setReplacesRental(original);
+        when(transactionService.rollBackRental(id, CancellationReason.BREAKDOWN, BreakdownResolution.REPLACEMENT, replacementCarId))
+                .thenReturn(replacement);
+
+        mockMvc.perform(put("/api/rentals/{id}/rollback", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"reason":"BREAKDOWN","resolution":"REPLACEMENT","replacementCarId":"%s"}
+                                """.formatted(replacementCarId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.totalAmount").value(0))
+                .andExpect(jsonPath("$.replacesRentalId").value(id.toString()));
+    }
+
+    @Test
+    void rollbackWithoutReasonReturns400() throws Exception {
+        mockMvc.perform(put("/api/rentals/{id}/rollback", UUID.randomUUID())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.reason").exists());
+
+        verifyNoInteractions(transactionService);
     }
 
     @Test

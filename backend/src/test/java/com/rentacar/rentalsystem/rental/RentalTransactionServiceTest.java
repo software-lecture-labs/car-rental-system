@@ -4,6 +4,7 @@ import com.rentacar.rentalsystem.car.Car;
 import com.rentacar.rentalsystem.car.CarService;
 import com.rentacar.rentalsystem.car.CarStatus;
 import com.rentacar.rentalsystem.exception.BusinessRuleException;
+import com.rentacar.rentalsystem.exception.InvalidRequestException;
 import com.rentacar.rentalsystem.pricing.PriceQuote;
 import com.rentacar.rentalsystem.pricing.PricingService;
 import com.rentacar.rentalsystem.user.Customer;
@@ -234,6 +235,7 @@ class RentalTransactionServiceTest {
         service.cancelReservation(rental.getId());
 
         assertThat(rental.getStatus()).isEqualTo(TransactionStatus.CANCELLED);
+        assertThat(rental.getCancellationReason()).isEqualTo(CancellationReason.CUSTOMER_REQUEST);
         assertThat(rental.getRefundedAmount()).isEqualByComparingTo("750.00");
         assertThat(customer.getBalance()).isEqualByComparingTo("10750.00");
     }
@@ -269,39 +271,104 @@ class RentalTransactionServiceTest {
 
         assertThat(cancelled).isEqualTo(1);
         assertThat(rental.getStatus()).isEqualTo(TransactionStatus.CANCELLED);
+        assertThat(rental.getCancellationReason()).isEqualTo(CancellationReason.NO_SHOW);
         assertThat(rental.getRefundedAmount()).isEqualByComparingTo("0");
         assertThat(customer.getBalance()).isEqualByComparingTo("10000.00");
     }
 
     @Test
-    void rollbackBeforePickupRefundsDeposit() {
+    void companyDecisionBeforePickupRefundsDeposit() {
         RentalTransaction rental = pendingRental(NOW.plusHours(2));
 
-        service.rollBackRental(rental.getId());
+        service.rollBackRental(rental.getId(), CancellationReason.COMPANY_DECISION, null, null);
 
         assertThat(rental.getStatus()).isEqualTo(TransactionStatus.ROLLED_BACK);
+        assertThat(rental.getCancellationReason()).isEqualTo(CancellationReason.COMPANY_DECISION);
         assertThat(rental.getRefundedAmount()).isEqualByComparingTo("750.00");
         assertThat(customer.getBalance()).isEqualByComparingTo("10750.00");
         assertThat(car.getStatus()).isEqualTo(CarStatus.AVAILABLE);
     }
 
     @Test
-    void breakdownOnFirstDayRefundsEverythingAndSendsCarToMaintenance() {
-        RentalTransaction rental = pickedUpRental(NOW.minusHours(20));
+    void companyDecisionAfterPickupRefundsUnusedDaysAndFreesCar() {
+        RentalTransaction rental = pickedUpRental(NOW.minusDays(1).minusHours(5));
 
-        service.rollBackRental(rental.getId());
+        service.rollBackRental(rental.getId(), CancellationReason.COMPANY_DECISION, null, null);
+
+        assertThat(rental.getRefundedAmount()).isEqualByComparingTo("2500.00");
+        assertThat(customer.getBalance()).isEqualByComparingTo("12500.00");
+        assertThat(car.getStatus()).isEqualTo(CarStatus.AVAILABLE);
+    }
+
+    @Test
+    void customerViolationBeforePickupKeepsDeposit() {
+        RentalTransaction rental = pendingRental(NOW.plusHours(2));
+
+        service.rollBackRental(rental.getId(), CancellationReason.CUSTOMER_VIOLATION, null, null);
 
         assertThat(rental.getStatus()).isEqualTo(TransactionStatus.ROLLED_BACK);
+        assertThat(rental.getCancellationReason()).isEqualTo(CancellationReason.CUSTOMER_VIOLATION);
+        assertThat(rental.getRefundedAmount()).isEqualByComparingTo("0");
+        assertThat(customer.getBalance()).isEqualByComparingTo("10000.00");
+    }
+
+    @Test
+    void customerViolationAfterPickupTakesCarBackWithoutRefund() {
+        RentalTransaction rental = pickedUpRental(NOW.minusDays(1));
+
+        service.rollBackRental(rental.getId(), CancellationReason.CUSTOMER_VIOLATION, null, null);
+
+        assertThat(rental.getRefundedAmount()).isEqualByComparingTo("0");
+        assertThat(customer.getBalance()).isEqualByComparingTo("10000.00");
+        assertThat(car.getStatus()).isEqualTo(CarStatus.AVAILABLE);
+    }
+
+    @Test
+    void customerReasonsCannotBeUsedForRollback() {
+        RentalTransaction rental = pendingRental(NOW.plusDays(2));
+
+        assertThatThrownBy(() -> service.rollBackRental(rental.getId(), CancellationReason.NO_SHOW, null, null))
+                .isInstanceOf(InvalidRequestException.class);
+        assertThat(rental.getStatus()).isEqualTo(TransactionStatus.PENDING);
+    }
+
+    @Test
+    void breakdownBeforePickupIsRejected() {
+        RentalTransaction rental = pendingRental(NOW.plusHours(2));
+
+        assertThatThrownBy(() -> service.rollBackRental(
+                rental.getId(), CancellationReason.BREAKDOWN, BreakdownResolution.REFUND, null))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("picked up");
+    }
+
+    @Test
+    void breakdownWithoutResolutionIsRejected() {
+        RentalTransaction rental = pickedUpRental(NOW.minusHours(20));
+
+        assertThatThrownBy(() -> service.rollBackRental(rental.getId(), CancellationReason.BREAKDOWN, null, null))
+                .isInstanceOf(InvalidRequestException.class);
+        assertThat(car.getStatus()).isEqualTo(CarStatus.RENTED);
+    }
+
+    @Test
+    void breakdownOnFirstDayWithRefundReturnsEverythingAndSendsCarToMaintenance() {
+        RentalTransaction rental = pickedUpRental(NOW.minusHours(20));
+
+        service.rollBackRental(rental.getId(), CancellationReason.BREAKDOWN, BreakdownResolution.REFUND, null);
+
+        assertThat(rental.getStatus()).isEqualTo(TransactionStatus.ROLLED_BACK);
+        assertThat(rental.getCancellationReason()).isEqualTo(CancellationReason.BREAKDOWN);
         assertThat(rental.getRefundedAmount()).isEqualByComparingTo("3750.00");
         assertThat(customer.getBalance()).isEqualByComparingTo("13750.00");
         assertThat(car.getStatus()).isEqualTo(CarStatus.MAINTENANCE);
     }
 
     @Test
-    void breakdownLaterRefundsOnlyUnusedDays() {
+    void breakdownLaterWithRefundReturnsOnlyUnusedDays() {
         RentalTransaction rental = pickedUpRental(NOW.minusDays(1).minusHours(5));
 
-        service.rollBackRental(rental.getId());
+        service.rollBackRental(rental.getId(), CancellationReason.BREAKDOWN, BreakdownResolution.REFUND, null);
 
         assertThat(rental.getRefundedAmount()).isEqualByComparingTo("2500.00");
         assertThat(customer.getBalance()).isEqualByComparingTo("12500.00");
@@ -309,12 +376,81 @@ class RentalTransactionServiceTest {
     }
 
     @Test
+    void breakdownWithReplacementGivesFreeCarForRemainingDays() {
+        RentalTransaction rental = pickedUpRental(NOW.minusDays(1));
+        Car replacementCar = availableCar("4000.00");
+
+        RentalTransaction replacement = service.rollBackRental(
+                rental.getId(), CancellationReason.BREAKDOWN, BreakdownResolution.REPLACEMENT, replacementCar.getId());
+
+        assertThat(rental.getStatus()).isEqualTo(TransactionStatus.ROLLED_BACK);
+        assertThat(rental.getRefundedAmount()).isEqualByComparingTo("0");
+        assertThat(car.getStatus()).isEqualTo(CarStatus.MAINTENANCE);
+
+        assertThat(replacement.getCar()).isSameAs(replacementCar);
+        assertThat(replacement.getCustomer()).isSameAs(customer);
+        assertThat(replacement.getReplacesRental()).isSameAs(rental);
+        assertThat(replacement.getRentalStart()).isEqualTo(NOW);
+        assertThat(replacement.getRentalEnd()).isEqualTo(rental.getRentalEnd());
+        assertThat(replacement.getTotalAmount()).isEqualByComparingTo("0");
+        assertThat(replacement.getDepositAmount()).isEqualByComparingTo("0");
+        assertThat(replacement.isPickedUp()).isTrue();
+        assertThat(replacement.getStatus()).isEqualTo(TransactionStatus.PENDING);
+        assertThat(replacementCar.getStatus()).isEqualTo(CarStatus.RENTED);
+        assertThat(customer.getBalance()).isEqualByComparingTo("10000.00");
+    }
+
+    @Test
+    void replacementWithoutCarIsRejected() {
+        RentalTransaction rental = pickedUpRental(NOW.minusDays(1));
+
+        assertThatThrownBy(() -> service.rollBackRental(
+                rental.getId(), CancellationReason.BREAKDOWN, BreakdownResolution.REPLACEMENT, null))
+                .isInstanceOf(InvalidRequestException.class);
+    }
+
+    @Test
+    void replacementCarUnderMaintenanceIsRejected() {
+        RentalTransaction rental = pickedUpRental(NOW.minusDays(1));
+        Car replacementCar = availableCar("1000.00");
+        replacementCar.setStatus(CarStatus.MAINTENANCE);
+
+        assertThatThrownBy(() -> service.rollBackRental(
+                rental.getId(), CancellationReason.BREAKDOWN, BreakdownResolution.REPLACEMENT, replacementCar.getId()))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("not available");
+        assertThat(rental.getStatus()).isEqualTo(TransactionStatus.PENDING);
+    }
+
+    @Test
+    void replacementCarBookedForRemainingDaysIsRejected() {
+        RentalTransaction rental = pickedUpRental(NOW.minusDays(1));
+        Car replacementCar = availableCar("1000.00");
+        when(repository.existsByCar_IdAndStatusInAndRentalStartLessThanAndRentalEndGreaterThan(
+                eq(replacementCar.getId()), anyCollection(), eq(rental.getRentalEnd()), eq(NOW))).thenReturn(true);
+
+        assertThatThrownBy(() -> service.rollBackRental(
+                rental.getId(), CancellationReason.BREAKDOWN, BreakdownResolution.REPLACEMENT, replacementCar.getId()))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("already booked");
+    }
+
+    @Test
     void finishedRentalCannotBeRolledBack() {
         RentalTransaction rental = pendingRental(NOW.plusDays(2));
-        rental.cancel();
+        rental.cancel(CancellationReason.CUSTOMER_REQUEST);
 
-        assertThatThrownBy(() -> service.rollBackRental(rental.getId()))
+        assertThatThrownBy(() -> service.rollBackRental(rental.getId(), CancellationReason.COMPANY_DECISION, null, null))
                 .isInstanceOf(BusinessRuleException.class);
+    }
+
+    private Car availableCar(String dailyPrice) {
+        Car other = new Car();
+        other.setId(UUID.randomUUID());
+        other.setDailyBasePrice(new BigDecimal(dailyPrice));
+        other.setStatus(CarStatus.AVAILABLE);
+        when(carService.getCarById(other.getId())).thenReturn(other);
+        return other;
     }
 
     private RentalTransaction pickedUpRental(LocalDateTime start) {

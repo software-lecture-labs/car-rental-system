@@ -21,7 +21,9 @@ public record RentalResponse(
         BigDecimal depositAmount,
         BigDecimal refundedAmount,
         LocalDateTime pickedUpAt,
-        TransactionStatus status
+        TransactionStatus status,
+        CancellationReason cancellationReason,
+        UUID replacesRentalId
 ) {
 
     public static RentalResponse from(RentalTransaction transaction) {
@@ -44,7 +46,9 @@ public record RentalResponse(
                 transaction.getDepositAmount(),
                 transaction.getRefundedAmount(),
                 transaction.getPickedUpAt(),
-                transaction.getStatus()
+                transaction.getStatus(),
+                transaction.getCancellationReason(),
+                transaction.getReplacesRental() == null ? null : transaction.getReplacesRental().getId()
         );
     }
 }

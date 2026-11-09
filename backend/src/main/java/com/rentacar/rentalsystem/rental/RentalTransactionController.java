@@ -45,8 +45,10 @@ public class RentalTransactionController {
     }
 
     @PutMapping("/{id}/rollback")
-    public ResponseEntity<RentalResponse> rollBackRental(@PathVariable UUID id) {
-        return ResponseEntity.ok(RentalResponse.from(transactionService.rollBackRental(id)));
+    public ResponseEntity<RentalResponse> rollBackRental(@PathVariable UUID id, @Valid @RequestBody RollbackRequest request) {
+        RentalTransaction result = transactionService.rollBackRental(
+                id, request.reason(), request.resolution(), request.replacementCarId());
+        return ResponseEntity.ok(RentalResponse.from(result));
     }
 
     @GetMapping("/{id}")
