@@ -26,10 +26,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class RentalTransactionService {
 
-    private static final List<TransactionStatus> BLOCKING_STATUSES =
-            List.of(TransactionStatus.PENDING, TransactionStatus.COMPLETED);
-
-    private static final BigDecimal DEPOSIT_RATE = new BigDecimal("0.20");
     private static final Duration FREE_CANCELLATION_NOTICE = Duration.ofHours(24);
     private static final Duration NO_SHOW_GRACE_PERIOD = Duration.ofHours(4);
 
@@ -51,12 +47,12 @@ public class RentalTransactionService {
 
         LocalDateTime endDate = startDate.plusDays(rentalDays);
         if (transactionRepository.existsByCar_IdAndStatusInAndRentalStartLessThanAndRentalEndGreaterThan(
-                carId, BLOCKING_STATUSES, endDate, startDate)) {
+                carId, TransactionStatus.CAR_BLOCKING_STATUSES, endDate, startDate)) {
             throw new BusinessRuleException("The car is already booked for the selected dates.");
         }
 
         PriceQuote quote = pricingService.quote(car, rentalDays);
-        BigDecimal deposit = PricingService.roundMoney(quote.totalAmount().multiply(DEPOSIT_RATE));
+        BigDecimal deposit = quote.depositAmount();
 
         customer.deductBalance(deposit);
 
@@ -218,7 +214,7 @@ public class RentalTransactionService {
             throw new BusinessRuleException("The selected replacement car is not available.");
         }
         if (transactionRepository.existsByCar_IdAndStatusInAndRentalStartLessThanAndRentalEndGreaterThan(
-                replacementCarId, BLOCKING_STATUSES, end, now)) {
+                replacementCarId, TransactionStatus.CAR_BLOCKING_STATUSES, end, now)) {
             throw new BusinessRuleException("The replacement car is already booked for the remaining dates.");
         }
 

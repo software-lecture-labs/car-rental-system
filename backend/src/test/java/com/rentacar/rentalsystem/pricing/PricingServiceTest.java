@@ -66,6 +66,15 @@ class PricingServiceTest {
         assertThat(quote.totalAmount()).isEqualByComparingTo("24000.00");
     }
 
+    @Test
+    void quoteSplitsTotalIntoDepositAndAmountDueAtPickup() {
+        PriceQuote quote = new PriceQuote(BigDecimal.ZERO, new BigDecimal("3999.99"));
+
+        assertThat(quote.depositAmount()).isEqualByComparingTo("800.00");
+        assertThat(quote.amountDueAtPickup()).isEqualByComparingTo("3199.99");
+        assertThat(quote.depositAmount().add(quote.amountDueAtPickup())).isEqualByComparingTo(quote.totalAmount());
+    }
+
     private static PricingPolicy policy(String name, int minDays, String rate) {
         PricingPolicy policy = new PricingPolicy();
         policy.setPolicyName(name);
