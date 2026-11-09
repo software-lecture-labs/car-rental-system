@@ -7,3 +7,7 @@ app:
   jwt:
     # SADECE geliştirme anahtarı. Gerçek ortamda APP_JWT_SECRET ortam değişkeni verilir.
     secret: MbKxKbA1hJoT39tnW+HN2YlpSal+eYlqpAjmpoPLmsEpirDbafiBCUmMGBNRe6pz
+  admin:
+    # SADECE geliştirme. Uygulama açılırken bu e-postayla kullanıcı yoksa ADMIN olarak oluşturulur.
+    email: admin@rentacar.com
+    password: Admin12345
