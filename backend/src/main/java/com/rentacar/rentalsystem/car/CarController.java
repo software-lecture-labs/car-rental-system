@@ -27,11 +27,6 @@ public class CarController {
         return ResponseEntity.ok(toResponses(carService.getAllCars()));
     }
 
-    @GetMapping("/available")
-    public ResponseEntity<List<CarResponse>> getAvailableCars() {
-        return ResponseEntity.ok(toResponses(carService.getAvailableCars()));
-    }
-
     @GetMapping("/{id}")
     public ResponseEntity<CarResponse> getCarById(@PathVariable UUID id) {
         return ResponseEntity.ok(CarResponse.from(carService.getCarById(id)));

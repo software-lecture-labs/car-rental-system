@@ -26,8 +26,8 @@ public class CarService {
     }
 
 
-    public List<Car> getAvailableCars() {
-        return carRepository.findByStatus(CarStatus.AVAILABLE);
+    public List<Car> getCarsNotInMaintenance() {
+        return carRepository.findByStatusNot(CarStatus.MAINTENANCE);
     }
 
     public List<Car> getCarsByBrand(String brand) {

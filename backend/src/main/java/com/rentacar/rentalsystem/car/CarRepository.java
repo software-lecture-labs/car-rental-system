@@ -12,6 +12,8 @@ public interface CarRepository extends JpaRepository<Car, UUID> {
 
     List<Car> findByStatus(CarStatus status);
 
+    List<Car> findByStatusNot(CarStatus status);
+
     List<Car> findByBrand(String brand);
 
     List<Car> findByTransmission(TransmissionType transmission);
