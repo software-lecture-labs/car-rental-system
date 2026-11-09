@@ -4,6 +4,7 @@ import com.rentacar.rentalsystem.exception.BusinessRuleException;
 import com.rentacar.rentalsystem.exception.InvalidRequestException;
 import com.rentacar.rentalsystem.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -17,12 +18,15 @@ public class CustomerService {
 
     private final CustomerRepository customerRepository;
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public Customer registerCustomer(Customer customer) {
         if (userRepository.findByEmail(customer.getEmail()).isPresent()) {
             throw new BusinessRuleException("A user with this email already exists.");
         }
         customer.setRole(Role.CUSTOMER);
+        // Şifre asla düz metin saklanmaz, sadece BCrypt hash'i
+        customer.setPassword(passwordEncoder.encode(customer.getPassword()));
 
         return customerRepository.save(customer);
     }
