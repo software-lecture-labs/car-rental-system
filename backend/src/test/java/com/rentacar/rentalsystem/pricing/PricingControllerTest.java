@@ -3,6 +3,7 @@ package com.rentacar.rentalsystem.pricing;
 import com.rentacar.rentalsystem.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -21,6 +22,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+
+// Bu testler sadece controller davranışını ölçer; erişim kuralları security/ altındaki testlerde.
+@AutoConfigureMockMvc(addFilters = false)
 @WebMvcTest(PricingController.class)
 class PricingControllerTest {
 

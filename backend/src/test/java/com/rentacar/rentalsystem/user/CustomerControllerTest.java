@@ -5,6 +5,7 @@ import com.rentacar.rentalsystem.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -24,6 +25,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+// Bu testler sadece controller davranışını ölçer; erişim kuralları security/ altındaki testlerde.
+@AutoConfigureMockMvc(addFilters = false)
 @WebMvcTest(CustomerController.class)
 class CustomerControllerTest {
 
@@ -47,8 +50,8 @@ class CustomerControllerTest {
         });
 
         mockMvc.perform(post("/api/customers/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(VALID_REGISTRATION))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(VALID_REGISTRATION))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.email").value("ali.demo@example.com"))
                 .andExpect(jsonPath("$.balance").value(0))
@@ -63,11 +66,11 @@ class CustomerControllerTest {
     @Test
     void registerWithInvalidFieldsReturns400WithFieldErrors() throws Exception {
         mockMvc.perform(post("/api/customers/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"firstName":"","lastName":"Demo","email":"not-an-email",
-                                 "password":"short","licenseYear":1900}
-                                """))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"firstName":"","lastName":"Demo","email":"not-an-email",
+                         "password":"short","licenseYear":1900}
+                        """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.title").value("Validation failed"))
                 .andExpect(jsonPath("$.errors.firstName").exists())
@@ -81,8 +84,8 @@ class CustomerControllerTest {
     @Test
     void registerWithMalformedJsonReturns400() throws Exception {
         mockMvc.perform(post("/api/customers/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{not json"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{not json"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -92,8 +95,8 @@ class CustomerControllerTest {
                 .thenThrow(new BusinessRuleException("A user with this email already exists."));
 
         mockMvc.perform(post("/api/customers/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(VALID_REGISTRATION))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(VALID_REGISTRATION))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value("A user with this email already exists."));
     }
