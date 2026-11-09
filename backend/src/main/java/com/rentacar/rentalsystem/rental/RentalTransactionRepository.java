@@ -32,4 +32,6 @@ public interface RentalTransactionRepository extends JpaRepository<RentalTransac
             UUID carId, Collection<TransactionStatus> statuses, LocalDateTime end, LocalDateTime start);
 
     Optional<RentalTransaction> findFirstByCar_IdAndStatusOrderByRentalStartAsc(UUID carId, TransactionStatus status);
+
+    List<RentalTransaction> findByStatusAndPickedUpAtIsNullAndRentalStartBefore(TransactionStatus status, LocalDateTime start);
 }

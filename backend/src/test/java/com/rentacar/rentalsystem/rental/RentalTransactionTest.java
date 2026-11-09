@@ -27,6 +27,20 @@ class RentalTransactionTest {
         assertThat(rental.calculateTotal()).isEqualByComparingTo("3000.00");
     }
 
+    @Test
+    void remainingAmountIsTotalMinusDepositAndPickupIsTracked() {
+        RentalTransaction rental = rental(START.plusDays(7), "1250.00", "0.1000");
+        rental.setTotalAmount(new BigDecimal("7875.00"));
+        rental.setDepositAmount(new BigDecimal("1575.00"));
+
+        assertThat(rental.getRemainingAmount()).isEqualByComparingTo("6300.00");
+        assertThat(rental.isPickedUp()).isFalse();
+
+        rental.setPickedUpAt(START);
+
+        assertThat(rental.isPickedUp()).isTrue();
+    }
+
     private static RentalTransaction rental(LocalDateTime end, String dailyPrice, String discountRate) {
         RentalTransaction rental = new RentalTransaction();
         rental.setRentalStart(START);

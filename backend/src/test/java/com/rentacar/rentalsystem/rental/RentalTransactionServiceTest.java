@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -66,14 +67,16 @@ class RentalTransactionServiceTest {
     }
 
     @Test
-    void reservationChargesCustomerButKeepsCarAvailable() {
-        when(pricingService.quote(car, "WEEKLY", 7))
+    void reservationChargesOnlyTheDepositAndKeepsCarAvailable() {
+        when(pricingService.quote(car, 7))
                 .thenReturn(new PriceQuote(new BigDecimal("0.1000"), new BigDecimal("7875.00")));
 
-        RentalTransaction rental = service.rentCar(customer.getId(), car.getId(), "WEEKLY", NOW.plusDays(5), 7);
+        RentalTransaction rental = service.rentCar(customer.getId(), car.getId(), NOW.plusDays(5), 7);
 
         assertThat(car.getStatus()).isEqualTo(CarStatus.AVAILABLE);
-        assertThat(customer.getBalance()).isEqualByComparingTo("2125.00");
+        assertThat(rental.getDepositAmount()).isEqualByComparingTo("1575.00");
+        assertThat(rental.getRemainingAmount()).isEqualByComparingTo("6300.00");
+        assertThat(customer.getBalance()).isEqualByComparingTo("8425.00");
         assertThat(rental.getStatus()).isEqualTo(TransactionStatus.PENDING);
         assertThat(rental.getDiscountRate()).isEqualByComparingTo("0.1000");
         assertThat(rental.getTotalAmount()).isEqualByComparingTo("7875.00");
@@ -84,10 +87,10 @@ class RentalTransactionServiceTest {
     @Test
     void rentedCarCanStillBeReservedForLaterDates() {
         car.setStatus(CarStatus.RENTED);
-        when(pricingService.quote(car, null, 3))
+        when(pricingService.quote(car, 3))
                 .thenReturn(new PriceQuote(BigDecimal.ZERO, new BigDecimal("3750.00")));
 
-        RentalTransaction rental = service.rentCar(customer.getId(), car.getId(), null, NOW.plusDays(20), 3);
+        RentalTransaction rental = service.rentCar(customer.getId(), car.getId(), NOW.plusDays(20), 3);
 
         assertThat(rental.getStatus()).isEqualTo(TransactionStatus.PENDING);
     }
@@ -96,7 +99,7 @@ class RentalTransactionServiceTest {
     void carUnderMaintenanceCannotBeReserved() {
         car.setStatus(CarStatus.MAINTENANCE);
 
-        assertThatThrownBy(() -> service.rentCar(customer.getId(), car.getId(), null, NOW.plusDays(1), 3))
+        assertThatThrownBy(() -> service.rentCar(customer.getId(), car.getId(), NOW.plusDays(1), 3))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("maintenance");
         verify(repository, never()).save(any());
@@ -107,7 +110,7 @@ class RentalTransactionServiceTest {
         when(repository.existsByCar_IdAndStatusInAndRentalStartLessThanAndRentalEndGreaterThan(
                 eq(car.getId()), anyCollection(), any(), any())).thenReturn(true);
 
-        assertThatThrownBy(() -> service.rentCar(customer.getId(), car.getId(), null, NOW.plusDays(1), 3))
+        assertThatThrownBy(() -> service.rentCar(customer.getId(), car.getId(), NOW.plusDays(1), 3))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("already booked");
         assertThat(customer.getBalance()).isEqualByComparingTo("10000.00");
@@ -115,11 +118,11 @@ class RentalTransactionServiceTest {
     }
 
     @Test
-    void insufficientBalanceIsRejected() {
-        when(pricingService.quote(any(), any(), anyLong()))
-                .thenReturn(new PriceQuote(BigDecimal.ZERO, new BigDecimal("50000.00")));
+    void balanceBelowDepositIsRejected() {
+        when(pricingService.quote(any(), anyLong()))
+                .thenReturn(new PriceQuote(BigDecimal.ZERO, new BigDecimal("60000.00")));
 
-        assertThatThrownBy(() -> service.rentCar(customer.getId(), car.getId(), null, NOW.plusDays(1), 40))
+        assertThatThrownBy(() -> service.rentCar(customer.getId(), car.getId(), NOW.plusDays(1), 40))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("Insufficient balance");
         verify(repository, never()).save(any());
@@ -136,12 +139,37 @@ class RentalTransactionServiceTest {
     }
 
     @Test
-    void pickupOnStartDayMarksCarRented() {
+    void pickupChargesRemainingAmountAndMarksCarRented() {
         RentalTransaction rental = pendingRental(NOW.withHour(14));
 
         service.pickupCar(rental.getId());
 
         assertThat(car.getStatus()).isEqualTo(CarStatus.RENTED);
+        assertThat(rental.getPickedUpAt()).isEqualTo(NOW);
+        assertThat(customer.getBalance()).isEqualByComparingTo("7000.00");
+    }
+
+    @Test
+    void pickupWithInsufficientBalanceIsRejectedAndReservationIsKept() {
+        RentalTransaction rental = pendingRental(NOW.minusHours(1));
+        customer.setBalance(new BigDecimal("2000.00"));
+
+        assertThatThrownBy(() -> service.pickupCar(rental.getId()))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("Insufficient balance");
+        assertThat(car.getStatus()).isEqualTo(CarStatus.AVAILABLE);
+        assertThat(rental.isPickedUp()).isFalse();
+        assertThat(rental.getStatus()).isEqualTo(TransactionStatus.PENDING);
+        assertThat(customer.getBalance()).isEqualByComparingTo("2000.00");
+    }
+
+    @Test
+    void pickupAfterNoShowDeadlineIsRejected() {
+        RentalTransaction rental = pendingRental(NOW.minusHours(5));
+
+        assertThatThrownBy(() -> service.pickupCar(rental.getId()))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("expired");
     }
 
     @Test
@@ -165,23 +193,135 @@ class RentalTransactionServiceTest {
     }
 
     @Test
-    void returnAfterPickupCompletesRentalAndFreesCar() {
-        RentalTransaction rental = pendingRental(NOW.minusDays(3));
-        car.setStatus(CarStatus.RENTED);
+    void returnAtEndCompletesRentalAndFreesCar() {
+        RentalTransaction rental = pickedUpRental(NOW.minusDays(3));
 
         service.returnCar(rental.getId());
 
         assertThat(rental.getStatus()).isEqualTo(TransactionStatus.COMPLETED);
+        assertThat(rental.getRentalEnd()).isEqualTo(NOW);
+        assertThat(car.getStatus()).isEqualTo(CarStatus.AVAILABLE);
+    }
+
+    @Test
+    void earlyReturnShortensRentalEndWithoutRefund() {
+        RentalTransaction rental = pickedUpRental(NOW.minusDays(1));
+        BigDecimal balanceBefore = customer.getBalance();
+
+        service.returnCar(rental.getId());
+
+        assertThat(rental.getStatus()).isEqualTo(TransactionStatus.COMPLETED);
+        assertThat(rental.getRentalEnd()).isEqualTo(NOW);
+        assertThat(rental.getTotalAmount()).isEqualByComparingTo("3750.00");
+        assertThat(rental.getRefundedAmount()).isEqualByComparingTo("0");
+        assertThat(customer.getBalance()).isEqualByComparingTo(balanceBefore);
         assertThat(car.getStatus()).isEqualTo(CarStatus.AVAILABLE);
     }
 
     @Test
     void completedRentalCannotBeReturnedAgain() {
-        RentalTransaction rental = pendingRental(NOW.minusDays(3));
+        RentalTransaction rental = pickedUpRental(NOW.minusDays(3));
         rental.complete();
 
         assertThatThrownBy(() -> service.returnCar(rental.getId()))
                 .isInstanceOf(BusinessRuleException.class);
+    }
+
+    @Test
+    void cancellationMoreThanOneDayAheadRefundsDeposit() {
+        RentalTransaction rental = pendingRental(NOW.plusDays(2));
+
+        service.cancelReservation(rental.getId());
+
+        assertThat(rental.getStatus()).isEqualTo(TransactionStatus.CANCELLED);
+        assertThat(rental.getRefundedAmount()).isEqualByComparingTo("750.00");
+        assertThat(customer.getBalance()).isEqualByComparingTo("10750.00");
+    }
+
+    @Test
+    void cancellationWithinLastDayForfeitsDeposit() {
+        RentalTransaction rental = pendingRental(NOW.plusHours(10));
+
+        service.cancelReservation(rental.getId());
+
+        assertThat(rental.getStatus()).isEqualTo(TransactionStatus.CANCELLED);
+        assertThat(rental.getRefundedAmount()).isEqualByComparingTo("0");
+        assertThat(customer.getBalance()).isEqualByComparingTo("10000.00");
+    }
+
+    @Test
+    void cancellationAfterPickupIsRejected() {
+        RentalTransaction rental = pickedUpRental(NOW.minusDays(1));
+
+        assertThatThrownBy(() -> service.cancelReservation(rental.getId()))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("not been picked up");
+        assertThat(rental.getStatus()).isEqualTo(TransactionStatus.PENDING);
+    }
+
+    @Test
+    void noShowsAreCancelledWithoutRefund() {
+        RentalTransaction rental = pendingRental(NOW.minusHours(5));
+        when(repository.findByStatusAndPickedUpAtIsNullAndRentalStartBefore(TransactionStatus.PENDING, NOW.minusHours(4)))
+                .thenReturn(List.of(rental));
+
+        int cancelled = service.cancelNoShows();
+
+        assertThat(cancelled).isEqualTo(1);
+        assertThat(rental.getStatus()).isEqualTo(TransactionStatus.CANCELLED);
+        assertThat(rental.getRefundedAmount()).isEqualByComparingTo("0");
+        assertThat(customer.getBalance()).isEqualByComparingTo("10000.00");
+    }
+
+    @Test
+    void rollbackBeforePickupRefundsDeposit() {
+        RentalTransaction rental = pendingRental(NOW.plusHours(2));
+
+        service.rollBackRental(rental.getId());
+
+        assertThat(rental.getStatus()).isEqualTo(TransactionStatus.ROLLED_BACK);
+        assertThat(rental.getRefundedAmount()).isEqualByComparingTo("750.00");
+        assertThat(customer.getBalance()).isEqualByComparingTo("10750.00");
+        assertThat(car.getStatus()).isEqualTo(CarStatus.AVAILABLE);
+    }
+
+    @Test
+    void breakdownOnFirstDayRefundsEverythingAndSendsCarToMaintenance() {
+        RentalTransaction rental = pickedUpRental(NOW.minusHours(20));
+
+        service.rollBackRental(rental.getId());
+
+        assertThat(rental.getStatus()).isEqualTo(TransactionStatus.ROLLED_BACK);
+        assertThat(rental.getRefundedAmount()).isEqualByComparingTo("3750.00");
+        assertThat(customer.getBalance()).isEqualByComparingTo("13750.00");
+        assertThat(car.getStatus()).isEqualTo(CarStatus.MAINTENANCE);
+    }
+
+    @Test
+    void breakdownLaterRefundsOnlyUnusedDays() {
+        RentalTransaction rental = pickedUpRental(NOW.minusDays(1).minusHours(5));
+
+        service.rollBackRental(rental.getId());
+
+        assertThat(rental.getRefundedAmount()).isEqualByComparingTo("2500.00");
+        assertThat(customer.getBalance()).isEqualByComparingTo("12500.00");
+        assertThat(car.getStatus()).isEqualTo(CarStatus.MAINTENANCE);
+    }
+
+    @Test
+    void finishedRentalCannotBeRolledBack() {
+        RentalTransaction rental = pendingRental(NOW.plusDays(2));
+        rental.cancel();
+
+        assertThatThrownBy(() -> service.rollBackRental(rental.getId()))
+                .isInstanceOf(BusinessRuleException.class);
+    }
+
+    private RentalTransaction pickedUpRental(LocalDateTime start) {
+        RentalTransaction rental = pendingRental(start);
+        rental.setPickedUpAt(start);
+        car.setStatus(CarStatus.RENTED);
+        return rental;
     }
 
     private RentalTransaction pendingRental(LocalDateTime start) {
@@ -193,6 +333,7 @@ class RentalTransactionServiceTest {
         rental.setRentalEnd(start.plusDays(3));
         rental.setDailyPrice(car.getDailyBasePrice());
         rental.setTotalAmount(new BigDecimal("3750.00"));
+        rental.setDepositAmount(new BigDecimal("750.00"));
         rental.setStatus(TransactionStatus.PENDING);
 
         when(repository.findById(rental.getId())).thenReturn(Optional.of(rental));

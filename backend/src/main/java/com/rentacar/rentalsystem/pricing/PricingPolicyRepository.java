@@ -8,4 +8,6 @@ public interface PricingPolicyRepository extends JpaRepository<PricingPolicy, UU
     Optional<PricingPolicy> findByPolicyName(String policyName);
 
     Optional<PricingPolicy> findByPolicyNameIgnoreCase(String policyName);
+
+    Optional<PricingPolicy> findFirstByMinDaysLessThanEqualOrderByMinDaysDesc(int rentalDays);
 }

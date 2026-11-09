@@ -50,9 +50,25 @@ public class RentalTransaction {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal totalAmount;
 
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal depositAmount = BigDecimal.ZERO;
+
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal refundedAmount = BigDecimal.ZERO;
+
+    private LocalDateTime pickedUpAt;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private TransactionStatus status = TransactionStatus.PENDING;
+
+    public boolean isPickedUp() {
+        return pickedUpAt != null;
+    }
+
+    public BigDecimal getRemainingAmount() {
+        return totalAmount.subtract(depositAmount);
+    }
 
     public long getRentalDays() {
         long hours = Duration.between(rentalStart, rentalEnd).toHours();
@@ -70,5 +86,9 @@ public class RentalTransaction {
 
     public void cancel() {
         this.status = TransactionStatus.CANCELLED;
+    }
+
+    public void rollBack() {
+        this.status = TransactionStatus.ROLLED_BACK;
     }
 }

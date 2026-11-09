@@ -18,6 +18,9 @@ public record RentalResponse(
         BigDecimal dailyPrice,
         BigDecimal discountRate,
         BigDecimal totalAmount,
+        BigDecimal depositAmount,
+        BigDecimal refundedAmount,
+        LocalDateTime pickedUpAt,
         TransactionStatus status
 ) {
 
@@ -38,6 +41,9 @@ public record RentalResponse(
                 transaction.getDailyPrice(),
                 transaction.getDiscountRate(),
                 transaction.getTotalAmount(),
+                transaction.getDepositAmount(),
+                transaction.getRefundedAmount(),
+                transaction.getPickedUpAt(),
                 transaction.getStatus()
         );
     }

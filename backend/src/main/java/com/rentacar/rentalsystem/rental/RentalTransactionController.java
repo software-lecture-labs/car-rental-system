@@ -21,7 +21,6 @@ public class RentalTransactionController {
         RentalTransaction transaction = transactionService.rentCar(
                 request.customerId(),
                 request.carId(),
-                request.selectedPackage(),
                 request.startDate(),
                 request.rentalDays()
         );
@@ -38,6 +37,16 @@ public class RentalTransactionController {
     public ResponseEntity<String> returnCar(@PathVariable UUID id) {
         transactionService.returnCar(id);
         return ResponseEntity.ok("Car has been returned and the rental is completed.");
+    }
+
+    @PutMapping("/{id}/cancel")
+    public ResponseEntity<RentalResponse> cancelReservation(@PathVariable UUID id) {
+        return ResponseEntity.ok(RentalResponse.from(transactionService.cancelReservation(id)));
+    }
+
+    @PutMapping("/{id}/rollback")
+    public ResponseEntity<RentalResponse> rollBackRental(@PathVariable UUID id) {
+        return ResponseEntity.ok(RentalResponse.from(transactionService.rollBackRental(id)));
     }
 
     @GetMapping("/{id}")

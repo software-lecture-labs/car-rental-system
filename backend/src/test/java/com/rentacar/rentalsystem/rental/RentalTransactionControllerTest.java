@@ -39,7 +39,7 @@ class RentalTransactionControllerTest {
 
     @Test
     void rentCarReturns201WithSummaryAndWithoutCustomerSecrets() throws Exception {
-        when(transactionService.rentCar(any(), any(), any(), any(), anyLong())).thenReturn(sampleRental());
+        when(transactionService.rentCar(any(), any(), any(), anyLong())).thenReturn(sampleRental());
 
         mockMvc.perform(post("/api/rentals")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -70,7 +70,7 @@ class RentalTransactionControllerTest {
 
     @Test
     void insufficientBalanceReturns409() throws Exception {
-        when(transactionService.rentCar(any(), any(), any(), any(), anyLong()))
+        when(transactionService.rentCar(any(), any(), any(), anyLong()))
                 .thenThrow(new BusinessRuleException("Insufficient balance."));
 
         mockMvc.perform(post("/api/rentals")
@@ -82,7 +82,7 @@ class RentalTransactionControllerTest {
 
     @Test
     void overlappingRentalFromDatabaseReturns409() throws Exception {
-        when(transactionService.rentCar(any(), any(), any(), any(), anyLong()))
+        when(transactionService.rentCar(any(), any(), any(), anyLong()))
                 .thenThrow(new DataIntegrityViolationException("overlap", new SQLException("exclusion", "23P01")));
 
         mockMvc.perform(post("/api/rentals")
@@ -107,6 +107,46 @@ class RentalTransactionControllerTest {
         mockMvc.perform(put("/api/rentals/{id}/pickup", id))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value("The car can be picked up on or after the rental start date."));
+    }
+
+    @Test
+    void cancelReturnsRentalWithRefundedDeposit() throws Exception {
+        UUID id = UUID.randomUUID();
+        RentalTransaction rental = sampleRental();
+        rental.setRefundedAmount(new BigDecimal("1575.00"));
+        rental.cancel();
+        when(transactionService.cancelReservation(id)).thenReturn(rental);
+
+        mockMvc.perform(put("/api/rentals/{id}/cancel", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELLED"))
+                .andExpect(jsonPath("$.depositAmount").value(1575.00))
+                .andExpect(jsonPath("$.refundedAmount").value(1575.00));
+    }
+
+    @Test
+    void cancelAfterPickupReturns409() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(transactionService.cancelReservation(id))
+                .thenThrow(new BusinessRuleException("Only a reservation that has not been picked up can be cancelled."));
+
+        mockMvc.perform(put("/api/rentals/{id}/cancel", id))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("Only a reservation that has not been picked up can be cancelled."));
+    }
+
+    @Test
+    void rollbackReturnsRolledBackRental() throws Exception {
+        UUID id = UUID.randomUUID();
+        RentalTransaction rental = sampleRental();
+        rental.setRefundedAmount(new BigDecimal("7875.00"));
+        rental.rollBack();
+        when(transactionService.rollBackRental(id)).thenReturn(rental);
+
+        mockMvc.perform(put("/api/rentals/{id}/rollback", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ROLLED_BACK"))
+                .andExpect(jsonPath("$.refundedAmount").value(7875.00));
     }
 
     @Test
@@ -153,6 +193,7 @@ class RentalTransactionControllerTest {
         rental.setDailyPrice(new BigDecimal("1250.00"));
         rental.setDiscountRate(new BigDecimal("0.1000"));
         rental.setTotalAmount(new BigDecimal("7875.00"));
+        rental.setDepositAmount(new BigDecimal("1575.00"));
         rental.setStatus(TransactionStatus.PENDING);
         return rental;
     }
