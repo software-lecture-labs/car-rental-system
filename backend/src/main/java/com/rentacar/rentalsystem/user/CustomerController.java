@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -29,6 +30,7 @@ public class CustomerController {
         return ResponseEntity.ok(toResponses(customerService.getAllCustomers()));
     }
 
+    @PreAuthorize("hasRole('ADMIN') or #id.toString() == authentication.name")
     @GetMapping("/{id}")
     public ResponseEntity<CustomerResponse> getCustomerById(@PathVariable UUID id) {
         return ResponseEntity.ok(CustomerResponse.from(customerService.getCustomerById(id)));
@@ -49,6 +51,7 @@ public class CustomerController {
         return ResponseEntity.ok(toResponses(customerService.getCustomersByLicenseYear(year)));
     }
 
+    @PreAuthorize("hasRole('ADMIN') or #id.toString() == authentication.name")
     @PutMapping("/{id}/balance")
     public ResponseEntity<String> loadBalance(@PathVariable UUID id, @RequestParam @Positive BigDecimal amount) {
         customerService.loadBalance(id, amount);
