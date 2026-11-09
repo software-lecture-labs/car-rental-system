@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: rentacar-backend
+  profiles:
+    # Hiç profil verilmezse "dev" kullanılır (Docker'da da IDE'de de)
+    default: dev
+
+  # Yerel geliştirme değerleri. Docker'da SPRING_DATASOURCE_* env değişkenleri bunları ezer.
+  datasource:
+    url: jdbc:postgresql://localhost:5432/rentacar
+    username: rentacar
+    password: rentacar_dev_123
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Şemayı Flyway yönetir; Hibernate sadece entity'ler tabloyla uyuşuyor mu diye kontrol eder
+      ddl-auto: validate
+
+  flyway:
+    locations: classpath:db/migration

@@ -1,0 +1,5 @@
+# Satır sonlarını sabitle: Windows'ta CRLF'e dönen script'ler Docker (WSL) içinde patlar
+* text=auto
+*.sh  text eol=lf
+mvnw  text eol=lf
+*.cmd text eol=crlf
