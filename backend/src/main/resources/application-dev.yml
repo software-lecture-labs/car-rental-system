@@ -2,3 +2,8 @@ spring:
   flyway:
     # dev profilinde örnek veriler de yüklenir (db/seed). Prod'da sadece db/migration çalışır.
     locations: classpath:db/migration,classpath:db/seed
+
+app:
+  jwt:
+    # SADECE geliştirme anahtarı. Gerçek ortamda APP_JWT_SECRET ortam değişkeni verilir.
+    secret: MbKxKbA1hJoT39tnW+HN2YlpSal+eYlqpAjmpoPLmsEpirDbafiBCUmMGBNRe6pz
