@@ -5,6 +5,7 @@ import com.rentacar.rentalsystem.exception.InvalidRequestException;
 import com.rentacar.rentalsystem.pricing.PriceQuote;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -22,6 +23,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+// Bu testler sadece controller davranışını ölçer; erişim kuralları security/ altındaki testlerde.
+@AutoConfigureMockMvc(addFilters = false)
 @WebMvcTest(CarAvailabilityController.class)
 class CarAvailabilityControllerTest {
 
@@ -37,8 +40,8 @@ class CarAvailabilityControllerTest {
         when(availabilityService.findAvailableCars(start, 5, "price,asc")).thenReturn(List.of(sampleOffer()));
 
         mockMvc.perform(get("/api/cars/available")
-                        .param("start", start.toString())
-                        .param("days", "5"))
+                .param("start", start.toString())
+                .param("days", "5"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].car.plate").value("34ABC123"))
                 .andExpect(jsonPath("$[0].rentalDays").value(5))
@@ -53,9 +56,9 @@ class CarAvailabilityControllerTest {
         when(availabilityService.findAvailableCars(eq(start), eq(5L), eq("price,desc"))).thenReturn(List.of());
 
         mockMvc.perform(get("/api/cars/available")
-                        .param("start", start.toString())
-                        .param("days", "5")
-                        .param("sort", "price,desc"))
+                .param("start", start.toString())
+                .param("days", "5")
+                .param("sort", "price,desc"))
                 .andExpect(status().isOk());
     }
 
@@ -70,8 +73,8 @@ class CarAvailabilityControllerTest {
     @Test
     void pastStartAndZeroDaysReturn400() throws Exception {
         mockMvc.perform(get("/api/cars/available")
-                        .param("start", "2020-01-01T10:00")
-                        .param("days", "0"))
+                .param("start", "2020-01-01T10:00")
+                .param("days", "0"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.start").exists())
                 .andExpect(jsonPath("$.errors.days").exists());
@@ -85,9 +88,9 @@ class CarAvailabilityControllerTest {
                 .thenThrow(new InvalidRequestException("Sort must be 'price,asc' or 'price,desc'."));
 
         mockMvc.perform(get("/api/cars/available")
-                        .param("start", LocalDateTime.now().plusDays(1).withNano(0).toString())
-                        .param("days", "5")
-                        .param("sort", "brand"))
+                .param("start", LocalDateTime.now().plusDays(1).withNano(0).toString())
+                .param("days", "5")
+                .param("sort", "brand"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value("Sort must be 'price,asc' or 'price,desc'."));
     }

@@ -4,6 +4,7 @@ import com.rentacar.rentalsystem.exception.BusinessRuleException;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
@@ -24,6 +25,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+// Bu testler sadece controller davranışını ölçer; erişim kuralları security/ altındaki testlerde.
+@AutoConfigureMockMvc(addFilters = false)
 @WebMvcTest(CarController.class)
 class CarControllerTest {
 

@@ -19,3 +19,11 @@ spring:
 
   flyway:
     locations: classpath:db/migration
+
+app:
+  jwt:
+    # secret burada YOK: dev profilinde application-dev.yml'den, gerçek ortamda APP_JWT_SECRET ortam değişkeninden gelir
+    expiration: 2h
+    issuer: rentacar
+  cors:
+    allowed-origins: http://localhost:3000
