@@ -40,6 +40,12 @@ public class CustomerService {
                 .orElseThrow(() -> new ResourceNotFoundException("Customer not found: " + id));
     }
 
+    public Customer updateCustomer(UUID id, CustomerUpdateRequest request) {
+        Customer customer = getCustomerById(id);
+        request.applyTo(customer);
+        return customerRepository.save(customer);
+    }
+
     public void loadBalance(UUID customerId, BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new InvalidRequestException("Amount must be greater than zero.");
