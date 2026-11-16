@@ -28,7 +28,7 @@ import java.util.List;
 
 /**
  * Kim hangi endpoint'e erişebilir?
- * - Herkes: giriş, kayıt, araç listesi/detayı/arama, fiyat kademeleri
+ * - Herkes: giriş, kayıt, araç listesi/detayı/arama/görselleri, fiyat kademeleri
  * - Sadece ADMIN: araç ve fiyat yönetimi, müşteri listesi/silme, tüm kiralamalar, teslim alma / iade / geri alma
  * - Giriş yapmış herkes: geri kalanlar. Müşterinin sadece KENDİ verisine erişmesi controller'lardaki @PreAuthorize ile sağlanır.
  */
@@ -58,7 +58,7 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/customers/register").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/cars", "/api/cars/available", "/api/cars/{id}",
-                                "/api/pricing/policies").permitAll()
+                                "/api/cars/*/images", "/api/cars/*/images/**", "/api/pricing/policies").permitAll()
 
                         .requestMatchers("/api/cars/**", "/api/pricing/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/customers", "/api/customers/email/**",
