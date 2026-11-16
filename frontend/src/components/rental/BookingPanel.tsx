@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Receipt, ReceiptLine, ReceiptTotal } from "@/components/doc/Receipt";
-import { Stamp } from "@/components/doc/Stamp";
+import { RentalReceipt } from "@/components/rental/RentalReceipt";
 import { Field, TextInput } from "@/components/ui/Field";
 import { Notice } from "@/components/ui/Notice";
 import { buttonClass } from "@/components/ui/button";
@@ -15,7 +15,6 @@ import {
   addDays,
   combineDateTime,
   compareParts,
-  formatDateTimeLong,
   formatDateTimeNumeric,
   istanbulNow,
   parseLocalDateTime,
@@ -26,7 +25,7 @@ import {
 } from "@/lib/datetime";
 import { formatPercent, formatTL } from "@/lib/format";
 import { conflictKind, errorMessage } from "@/lib/messages";
-import { DEPOSIT_RATE_PERCENT, contractDays, nextTier, quotePrice } from "@/lib/pricing";
+import { DEPOSIT_RATE_PERCENT, nextTier, quotePrice } from "@/lib/pricing";
 import { MAX_RENTAL_DAYS, searchToQuery } from "@/lib/search";
 
 export type Viewer = { kind: "guest" } | { kind: "admin" } | { kind: "customer"; id: string; balance: number };
@@ -417,30 +416,15 @@ function Messages({
 }
 
 function BookedReceipt({ rental }: { rental: RentalResponse }) {
-  const days = contractDays({
-    dailyPrice: rental.dailyPrice,
-    discountRate: rental.discountRate,
-    totalAmount: rental.totalAmount,
-    fallbackDays: 1,
-  });
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4 border-b border-rule pb-3">
+      <div className="border-b border-rule pb-3">
         <p className="text-lg font-semibold text-navy">Rezervasyonun alındı.</p>
-        <Stamp label="Rezerve" tone="navy" note={formatDateTimeNumeric(rental.transactionDate)} />
+        <p className="mt-1 text-sm text-muted">
+          Bakiyenden <span className="figures">{formatTL(rental.depositAmount)}</span> ön ödeme düşüldü. Tutarlar sunucunun kaydettiği değerlerdir.
+        </p>
       </div>
-      <Receipt title="Kiralama sözleşmesi" serial={`NO ${rental.id.slice(0, 8).toUpperCase()}`}>
-        <ReceiptLine label="Teslim" value={formatDateTimeLong(rental.rentalStart)} tone="muted" />
-        <ReceiptLine label="İade" value={formatDateTimeLong(rental.rentalEnd)} tone="muted" />
-        <div className="my-2 border-t border-dashed border-rule" />
-        <ReceiptLine label={`Günlük ${formatTL(rental.dailyPrice)} × ${days} gün`} value={formatTL(rental.dailyPrice * days)} />
-        <ReceiptLine label={`İndirim (${formatPercent(rental.discountRate)})`} value={formatTL(rental.dailyPrice * days - rental.totalAmount)} tone="credit" />
-        <ReceiptTotal label="Toplam" value={formatTL(rental.totalAmount)} />
-        <div className="mt-3">
-          <ReceiptLine label="Ödenen ön ödeme" value={formatTL(rental.depositAmount)} />
-          <ReceiptLine label="Teslimde ödenecek" value={formatTL(rental.totalAmount - rental.depositAmount)} tone="muted" />
-        </div>
-      </Receipt>
+      <RentalReceipt rental={rental} />
       <div className="flex flex-wrap gap-3">
         <Link href={`/hesabim/kiralamalar/${rental.id}`} className={buttonClass("primary")}>
           Kiralamayı görüntüle
