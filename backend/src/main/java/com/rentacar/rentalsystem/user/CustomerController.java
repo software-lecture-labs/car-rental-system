@@ -36,6 +36,13 @@ public class CustomerController {
         return ResponseEntity.ok(CustomerResponse.from(customerService.getCustomerById(id)));
     }
 
+    @PreAuthorize("hasRole('ADMIN') or #id.toString() == authentication.name")
+    @PutMapping("/{id}")
+    public ResponseEntity<CustomerResponse> updateCustomer(@PathVariable UUID id,
+                                                           @Valid @RequestBody CustomerUpdateRequest request) {
+        return ResponseEntity.ok(CustomerResponse.from(customerService.updateCustomer(id, request)));
+    }
+
     @GetMapping("/email/{email}")
     public ResponseEntity<CustomerResponse> getCustomerByEmail(@PathVariable String email) {
         return ResponseEntity.ok(CustomerResponse.from(customerService.getCustomerByEmail(email)));

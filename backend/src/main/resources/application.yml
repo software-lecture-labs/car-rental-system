@@ -20,6 +20,17 @@ spring:
   flyway:
     locations: classpath:db/migration
 
+  # Araç görseli yükleme: dosya başına en fazla 5 MB, tek istekte en fazla 10 görsel
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 55MB
+
+# Sınırı aşan yüklemede bağlantıyı koparmak yerine 413 cevabı dönebilmek için
+server:
+  tomcat:
+    max-swallow-size: 60MB
+
 app:
   jwt:
     # secret burada YOK: dev profilinde application-dev.yml'den, gerçek ortamda APP_JWT_SECRET ortam değişkeninden gelir

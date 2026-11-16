@@ -48,6 +48,12 @@ public class CarService {
                 .orElseThrow(() -> new ResourceNotFoundException("Car not found: " + id));
     }
 
+    public Car updateCar(UUID id, CarUpdateRequest request) {
+        Car car = getCarById(id);
+        request.applyTo(car);
+        return carRepository.save(car);
+    }
+
     public void setCarMaintenance(UUID id) {
         Car car = getCarById(id);
 
