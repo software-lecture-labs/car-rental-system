@@ -32,6 +32,12 @@ public class CarController {
         return ResponseEntity.ok(CarResponse.from(carService.getCarById(id)));
     }
 
+    /** Sadece ADMIN: SecurityConfig'te /api/cars/** için GET dışındaki her istek admin ister. */
+    @PutMapping("/{id}")
+    public ResponseEntity<CarResponse> updateCar(@PathVariable UUID id, @Valid @RequestBody CarUpdateRequest request) {
+        return ResponseEntity.ok(CarResponse.from(carService.updateCar(id, request)));
+    }
+
     @PutMapping("/{id}/maintenance")
     public ResponseEntity<String> setCarMaintenance(@PathVariable UUID id) {
         carService.setCarMaintenance(id);
