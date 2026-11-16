@@ -7,6 +7,8 @@ import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
 import "@fontsource/ibm-plex-mono/600.css";
 import "./globals.css";
+import { Suspense } from "react";
+import { HeaderSession, HeaderSessionFallback } from "@/components/layout/HeaderSession";
 import { SiteFooter, SiteHeader } from "@/components/layout/Shell";
 
 export const metadata: Metadata = {
@@ -28,7 +30,13 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         >
           İçeriğe geç
         </a>
-        <SiteHeader session={null} />
+        <SiteHeader
+          session={
+            <Suspense fallback={<HeaderSessionFallback />}>
+              <HeaderSession />
+            </Suspense>
+          }
+        />
         <main id="icerik" className="flex-1">
           {children}
         </main>
