@@ -40,10 +40,22 @@ export async function readProblem(response: Response): Promise<ProblemDetail> {
   }
 }
 
-/** Başarılı cevabı içerik türüne göre çözer: 204 → undefined, JSON → nesne, diğerleri → metin. */
+/**
+ * Başarılı cevabı çözer: 204 → undefined, JSON → nesne, diğerleri → metin.
+ * Backend'in ResponseEntity<String> dönen uçları (ör. "Balance loaded successfully.") Accept: application/json
+ * ile çağrılınca Content-Type'ı application/json olan ama JSON olmayan düz metin döndürebiliyor; bu yüzden
+ * önce metni okuyup JSON'a çevirmeyi deniyoruz.
+ */
 export async function readBody<T>(response: Response): Promise<T> {
   if (response.status === 204) return undefined as T;
+  const text = await response.text();
   const type = response.headers.get("content-type") ?? "";
-  if (type.includes("json")) return (await response.json()) as T;
-  return (await response.text()) as T;
+  if (type.includes("json") && text) {
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      return text as T;
+    }
+  }
+  return text as T;
 }

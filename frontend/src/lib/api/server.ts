@@ -1,5 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { TOKEN_COOKIE } from "@/lib/auth/cookie";
 import { BACKEND_TIMEOUT_MS, backendUrl } from "@/lib/config";
 import { buildQuery, createApi, type RequestOptions } from "./endpoints";
@@ -16,6 +17,9 @@ async function serverRequest<T>(path: string, options: RequestOptions = {}): Pro
   if (options.auth !== "none") {
     const token = (await cookies()).get(TOKEN_COOKIE)?.value;
     if (token) headers.set("authorization", `Bearer ${token}`);
+  } else {
+    // Herkese açık veriler de istek anında çekilir (prerender'a gömülmez); zaman aşımı sayacı bundan sonra kurulur.
+    await connection();
   }
 
   let body: BodyInit | undefined;
