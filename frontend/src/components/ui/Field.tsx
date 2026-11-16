@@ -3,7 +3,7 @@ import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react
 export const inputClass =
   "block h-11 w-full rounded-sm border border-rule-strong bg-white px-3 text-[0.95rem] text-navy " +
   "placeholder:text-muted/70 aria-[invalid=true]:border-err aria-[invalid=true]:bg-err-bg/40 " +
-  "read-only:bg-card read-only:text-muted disabled:bg-card disabled:text-muted";
+  "[&[readonly]]:bg-card [&[readonly]]:text-muted disabled:bg-card disabled:text-muted";
 
 /**
  * Form alanı: belge kutusu gibi; üstte numaralı küçük etiket, altta değer, altında ipucu ya da hata.

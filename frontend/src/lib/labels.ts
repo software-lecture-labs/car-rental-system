@@ -48,7 +48,7 @@ export const CANCELLATION_REASON_LABELS: Record<CancellationReason, string> = {
 };
 
 /** Kiralama damgası: durum + teslim bilgisi birlikte okunur. */
-export function rentalStamp(rental: Pick<RentalResponse, "status" | "pickedUpAt" | "cancellationReason">): {
+export function rentalStamp(rental: Pick<RentalResponse, "status" | "pickedUpAt" | "cancellationReason" | "replacesRentalId">): {
   label: string;
   tone: StampTone;
   note?: string;
@@ -56,6 +56,7 @@ export function rentalStamp(rental: Pick<RentalResponse, "status" | "pickedUpAt"
   const reason = rental.cancellationReason ? CANCELLATION_REASON_LABELS[rental.cancellationReason] : undefined;
   switch (rental.status) {
     case "PENDING":
+      if (rental.replacesRentalId) return { label: "Kirada", tone: "navy", note: "Yedek araç" };
       return rental.pickedUpAt ? { label: "Kirada", tone: "navy" } : { label: "Rezerve", tone: "navy" };
     case "COMPLETED":
       return { label: "Tamamlandı", tone: "ok" };

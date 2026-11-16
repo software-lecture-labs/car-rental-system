@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { contractDays, nextTier, pickTier, quotePrice } from "./pricing";
+import { contractDays, nextTier, percentToRate, pickTier, quotePrice } from "./pricing";
 
 // V7__seed_pricing_policies ile aynı kademeler
 const tiers = [
@@ -78,5 +78,20 @@ describe("contractDays", () => {
 
   it("tutar sıfırsa (yedek araç kaydı) tarihlerden gelen güne düşer", () => {
     expect(contractDays({ dailyPrice: 2100, discountRate: 0, totalAmount: 0, fallbackDays: 4 })).toBe(4);
+  });
+});
+
+describe("percentToRate", () => {
+  it("yüzdeyi backend'in beklediği 4 ondalıklı orana çevirir", () => {
+    expect(percentToRate("10")).toBe("0.1000");
+    expect(percentToRate("12,5")).toBe("0.1250");
+    expect(percentToRate("%0")).toBe("0.0000");
+    expect(percentToRate("99,99")).toBe("0.9999");
+  });
+  it("aralık dışını ve fazla ondalığı reddeder", () => {
+    expect(percentToRate("100")).toBeNull();
+    expect(percentToRate("-5")).toBeNull();
+    expect(percentToRate("10,125")).toBeNull();
+    expect(percentToRate("")).toBeNull();
   });
 });

@@ -93,3 +93,12 @@ export function contractDays(rental: {
   }
   return rental.fallbackDays;
 }
+
+/** "12,5" -> 0.125 ; geçersizse null. discount_rate NUMERIC(5,4): yüzde olarak en fazla 2 ondalık, 0 ≤ oran < 1 */
+export function percentToRate(text: string): string | null {
+  const s = text.trim().replace(",", ".").replace(/^%/, "");
+  if (!/^\d{1,2}(\.\d{1,2})?$/.test(s)) return null;
+  const [whole, frac = ""] = s.split(".");
+  const basisPoints = Number(whole) * 100 + Number(frac.padEnd(2, "0"));
+  return (basisPoints / 10_000).toFixed(4);
+}
