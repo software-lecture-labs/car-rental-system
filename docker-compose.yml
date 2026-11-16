@@ -35,5 +35,16 @@ services:
     ports:
       - "8080:8080"
 
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    environment:
+      # Tarayıcı backend'e doğrudan gitmez; Next sunucusu konteyner ağı üzerinden "backend" servisine bağlanır
+      BACKEND_URL: http://backend:8080
+      TZ: Europe/Istanbul
+    ports:
+      - "3000:3000"
+
 volumes:
   pgdata:
